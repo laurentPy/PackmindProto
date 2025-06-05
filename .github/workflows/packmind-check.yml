@@ -1,0 +1,28 @@
+name: Packmind Check
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -r server/requirements.txt
+      - name: Start Packmind server
+        run: |
+          uvicorn server.app:app --port 8000 &
+          sleep 5
+      - name: Generate SARIF
+        run: |
+          echo '{"runs":[{"tool":{"driver":{"name":"prettier"}},"results":[{"ruleId":"prettier","message":{"text":"formatting error"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/index.js"},"region":{"startLine":1}}}]}]}]}' > report.sarif
+      - name: Upload violations via CLI
+        run: |
+          python cli/packmind_cli.py --sarif report.sarif --manifest-url http://localhost:8000/manifest --upload-url http://localhost:8000/api/upload --repo ${{ github.repository }}
