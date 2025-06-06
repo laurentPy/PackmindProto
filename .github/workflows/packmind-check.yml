@@ -1,28 +1,69 @@
-name: Packmind Check
+# .github/workflows/packmind-check.yml
+name: Packmind Checks
 
 on:
-  push:
-    branches: [ main ]
+  pull_request:
+    branches: [main]
 
 jobs:
-  lint:
+  # 1 ──────────────── Fast-lane (Prettier, etc.) ────────────────
+  fast-lane:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+
+      # ⚡ fake / or real Prettier run goes here ...
+      - name: Upload Prettier to Packmind
+        run: |
+          python3 cli/packmind_cli.py \
+            --sarif        report.sarif \
+            --manifest-url http://localhost:8000/manifest \
+            --upload-url   http://localhost:8000/api/upload \
+            --repo         mySpace
+
+  # 2 ──────────────── Full-lane (ArchUnit) ────────────────
+  archunit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/vanilla        # <─ gradle project root
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install JDK for the build
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          python-version: '3.11'
-      - name: Install dependencies
+          distribution: temurin
+          java-version: 17
+
+      # 2-A  Build + test (JUnit + ArchUnit)
+      - name: Gradle test
         run: |
-          pip install -r server/requirements.txt
-      - name: Start Packmind server
+          ./gradlew --no-daemon clean test
+          # After this, JUnit XML lives in
+          # apps/vanilla/build/test-results/test/*.xml
+
+      # 2-B  Convert JUnit XML → SARIF
+      # ──────────────────────────────────────────
+      # Option 1: ArchUnit ≥ 1.2.0 can write SARIF directly:
+      #   - Add `archUnitSarif` plugin or `ArchUnitSarifReport`.
+      #   - Then just copy that *.sarif file.
+      #
+      # Option 2 (shown here): generic junit-to-sarif converter
+      - name: Convert JUnit XML to SARIF
         run: |
-          uvicorn server.app:app --port 8000 &
-          sleep 5
-      - name: Generate SARIF
+          pip install junit2sarif  # tiny Python tool
+          junit2sarif \
+            build/test-results/test \
+            --output ../../report_archunit.sarif
+
+      # 2-C  Upload to Packmind
+      - name: Upload ArchUnit SARIF to Packmind
+        working-directory: ../..               # back to repo root
         run: |
-          echo '{"runs":[{"tool":{"driver":{"name":"prettier"}},"results":[{"ruleId":"prettier","message":{"text":"formatting error"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/index.js"},"region":{"startLine":1}}}]}]}]}' > report.sarif
-      - name: Upload violations via CLI
-        run: |
-          python cli/packmind_cli.py --sarif report.sarif --manifest-url http://localhost:8000/manifest --upload-url http://localhost:8000/api/upload --repo ${{ github.repository }}
+          python3 cli/packmind_cli.py \
+            --sarif        report_archunit.sarif \
+            --manifest-url http://localhost:8000/manifest \
+            --upload-url   http://localhost:8000/api/upload \
+            --repo         mySpace

@@ -1,0 +1,28 @@
+{
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "archunit"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "ui_should_not_access_core",
+          "message": {
+            "text": "java.lang.AssertionError: Rule 'no classes that reside in a package '..ui..' should access classes that reside in a package '..core..', because UI must talk to core via API layer' failed to check any classes. This means either that no classes have been passed to the rule at all, or that no classes passed to the rule matched the `that()` clause. To allow rules being evaluated without checking any classes you can either use `ArchRule.allowEmptyShould(true)` on a single rule or set the configuration property `archRule.failOnEmptyShould = false` to change the behavior globally."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "com/example/ArchRules.java"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
