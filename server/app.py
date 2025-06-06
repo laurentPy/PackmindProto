@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "packmind.db")
-REPO_NAME = os.getenv("REPO_NAME", "org/repo")
+REPO_NAME = os.getenv("REPO_NAME", "mySpace")
 ADR_DIR = os.path.join(os.path.dirname(__file__), "..", "docs", "adr")
 
 app = FastAPI(title="Packmind Lite")

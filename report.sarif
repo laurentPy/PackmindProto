@@ -1,0 +1,13 @@
+{
+  "runs": [
+    {
+      "tool": { "driver": { "name": "prettier" } },
+      "results": [
+        {
+          "ruleId": "prettier",
+          "message": { "text": "trial formatting error" }
+        }
+      ]
+    }
+  ]
+}
