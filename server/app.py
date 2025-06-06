@@ -1,7 +1,7 @@
 import os
 import sqlite3
 import yaml
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -123,6 +123,20 @@ def get_manifest(repo: str):
         for r in rows
     ]
     return {"repo": repo, "rules": results}
+
+@app.get("/adr/{adr_id}")
+def get_adr(adr_id: str):
+    """
+    Return the raw Markdown content for a given ADR ID, e.g. 'ADR-CS-001'.
+    """
+    # ADR_DIR is already defined above as the docs/adr folder
+    fname = f"{adr_id}.md"
+    path = os.path.join(ADR_DIR, fname)
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="ADR not found")
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+    return {"content": content}
 
 
 @app.post("/api/upload")
