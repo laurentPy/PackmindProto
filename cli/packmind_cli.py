@@ -3,11 +3,11 @@
 import argparse
 import json
 import requests
-
+import sys
 
 def parse_args():
     p = argparse.ArgumentParser(description="Packmind Lite CLI")
-    p.add_argument("--sarif", required=True, help="Path to SARIF report")
+    p.add_argument("--sarif", required=True, nargs="+", help="Path to SARIF report")
     p.add_argument("--manifest-url", required=True, help="Base URL to manifest endpoint")
     p.add_argument("--upload-url", required=True, help="URL to upload violations")
     p.add_argument("--repo", required=True, help="GitHub repository name")
@@ -45,30 +45,99 @@ def parse_sarif(path: str):
     return items
 
 
+def load_violations_from_sarif(sarif_path):
+    """
+    Read one SARIF file and return a list of violation dicts in the shape:
+        { "adr_id": ..., "file": ..., "line": ..., "message": ... }
+    """
+    with open(sarif_path, "r", encoding="utf-8") as f:
+        sarif = json.load(f)
+
+    results = []
+    # The exact SARIF schema may vary, but typically:
+    # sarif["runs"][...]["results"][...] each has .ruleId, .locations, .message
+    for run in sarif.get("runs", []):
+        for res in run.get("results", []):
+            rule_id = res.get("ruleId", "")
+            # Extract location (first location= file + line)
+            locs = res.get("locations", [])
+            if locs:
+                physical = locs[0].get("physicalLocation", {})
+                artifact = physical.get("artifactLocation", {})
+                file_path = artifact.get("uri", "<unknown>")
+                region = physical.get("region", {})
+                line     = region.get("startLine", 0)
+            else:
+                file_path = "<unknown>"
+                line = 0
+
+            msg_obj = res.get("message", {})
+            message = msg_obj.get("text", "<no message>")
+
+            # We assume ruleId encodes the ADR, e.g. "ADR-CS-001"
+            # or you have some mapping from ruleId→adr_id. Adjust as needed.
+            parts   = rule_id.split("_", 1)
+            adr_id  = parts[0] if parts else ""
+            results.append({
+                "adr_id":  adr_id,
+                "file":    file_path,
+                "line":    line,
+                "message": message,
+            })
+    return results
+
 def main():
     args = parse_args()
-    manifest = load_manifest(args.manifest_url, args.repo)
-    sarif_items = parse_sarif(args.sarif)
-    violations = []
-    for it in sarif_items:
-        adr = manifest.get((it["tool"], it["rule"]))
-        if not adr:
-            continue
-        violations.append(
-            {
-                "adr_id": adr,
-                "file": it["file"],
-                "line": it["line"],
-                "message": it["msg"],
-            }
-        )
-    if not violations:
-        print("No violations found")
-        return
-    resp = requests.post(args.upload_url, json={"violations": violations})
-    resp.raise_for_status()
-    print("Uploaded", len(violations), "violations")
 
+    manifest_map = load_manifest(args.manifest_url, args.repo)
+    all_violations = []
+    for sarif_path in args.sarif:
+
+            try:
+                items = parse_sarif(sarif_path)
+            except FileNotFoundError:
+                print(f"ERROR: SARIF file not found: {sarif_path}", file=sys.stderr)
+                sys.exit(1)
+            except json.JSONDecodeError:
+                print(f"ERROR: Failed to parse SARIF (invalid JSON): {sarif_path}", file=sys.stderr)
+                sys.exit(1)
+
+            # 2) Convert to Packmind “violation” objects using the manifest map
+            violations = []
+            for it in items:
+                key = (it["tool"], it["rule"])
+                adr_id = manifest_map.get(key)
+                if not adr_id:
+                    print(f"⚠️  No ADR mapping for {key}, skipping", file=sys.stderr)
+                    continue
+                violations.append({
+                    "adr_id":  adr_id,
+                    "file":    it["file"],
+                    "line":    it["line"],
+                    "message": it["msg"],
+                })
+            print(f"Loaded {len(violations)} violation(s) from {sarif_path}")
+            all_violations.extend(violations)
+
+    if not all_violations:
+        print("→ No violations found in any SARIF (after manifest mapping). Exiting.")
+        sys.exit(0)
+
+    # Build payload
+    payload = {"violations": all_violations}
+
+    # Upload to Packmind
+    print(f"→ Uploading {len(all_violations)} violation(s) to {args.upload_url} …")
+    r = requests.post(
+        args.upload_url,
+        json=payload,
+        headers={"Content-Type": "application/json"},
+    )
+    if r.status_code != 200:
+        print(f"ERROR: Upload failed: {r.status_code} {r.text}", file=sys.stderr)
+        sys.exit(1)
+
+    print("→ Successfully uploaded all violations.")
 
 if __name__ == "__main__":
     main()

@@ -1,39 +1,34 @@
 import os
 import sqlite3
 import yaml
+from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 1) Create the FastAPI instance *before* any @app.post / @app.get decorators.
-#    This must come first so that "app" is defined.
-# ──────────────────────────────────────────────────────────────────────────────
+DB_PATH = os.path.join(os.path.dirname(__file__), "packmind.db")
+REPO_NAME = os.getenv("REPO_NAME", "org/repo")
+ADR_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "docs", "adr"))
+
 app = FastAPI(title="Packmind Lite")
 
-# In‐memory store for demo‐only violations (no persistent DB)
-IN_MEMORY_VIOLATIONS: list[dict] = []
-
-# Path to SQLite DB where we’ll load ADR front‐matter
-DB_PATH = os.path.join(os.path.dirname(__file__), "packmind.db")
-# Default REPO_NAME (can be overridden via environment)
-REPO_NAME = os.getenv("REPO_NAME", "mySpace")
-ADR_DIR = os.path.join(os.path.dirname(__file__), "..", "docs", "adr")
-
+# In-memory list to hold uploaded violations
+in_memory_violations: List[dict] = []
 
 class Violation(BaseModel):
-    adr_id: str
-    file:   str
-    line:   int
+    adr_id:  str
+    file:    str
+    line:    int
     message: str
-
 
 class UploadPayload(BaseModel):
     violations: list[Violation]
 
 
 def init_db():
-    """Create the 'adr' table if it doesn’t exist."""
+    """
+    Create the `adr` table if it doesn’t exist yet.
+    """
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute(
@@ -54,14 +49,23 @@ def init_db():
 
 def load_adrs(repo: str, adr_dir: str):
     """
-    Parse each ADR Markdown file under `docs/adr/*.md`,
-    read its YAML front‐matter, and insert (or replace) into SQLite.
+    1) DELETE all existing rows for this repo
+    2) Re-scan adr_dir for .md files
+    3) REPLACE INTO adr (exactly what’s on disk)
     """
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
+
+    # 1) Remove all existing rows for this repo
+    cur.execute("DELETE FROM adr WHERE repo = ?", (repo,))
+
+    # 2) If the directory doesn’t exist, bail
     if not os.path.isdir(adr_dir):
+        conn.commit()
+        conn.close()
         return
 
+    # 3) For each .md file in docs/adr, parse front-matter and insert
     for fname in os.listdir(adr_dir):
         if not fname.endswith(".md"):
             continue
@@ -70,13 +74,16 @@ def load_adrs(repo: str, adr_dir: str):
             text = fh.read()
         if not text.startswith("---"):
             continue
-
         try:
-            front = text.split("---", 2)[1]
-            data = yaml.safe_load(front) or {}
+            parts = text.split("---", 2)
+            front = parts[1]
+            data = yaml.safe_load(front)
             enforcement = data.get("enforcement", {})
             cur.execute(
-                "REPLACE INTO adr (id, title, repo, tool, rule_id, severity) VALUES (?,?,?,?,?,?)",
+                """
+                REPLACE INTO adr (id, title, repo, tool, rule_id, severity)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
                 (
                     data.get("id"),
                     data.get("title"),
@@ -87,91 +94,94 @@ def load_adrs(repo: str, adr_dir: str):
                 ),
             )
         except Exception as e:
-            print(f"Failed to load ADR {fname}: {e}")
+            print(f"Failed to load {fname}: {e}")
+
     conn.commit()
     conn.close()
 
 
 @app.on_event("startup")
 def startup_event():
-    """When the server starts, create the table and load ADRs into it."""
+    """
+    Ensure the database exists. We do NOT pre-load ADRs here;
+    instead we rebuild on each /manifest call.
+    """
     init_db()
-    load_adrs(REPO_NAME, ADR_DIR)
 
 
 @app.get("/manifest/{repo}")
 def get_manifest(repo: str):
     """
-    Return JSON with all enforcement rules for this ‘repo’:
-      { repo: "mySpace",
-        rules: [
-          { id: "...", tool: "...", rule_id: "...", severity: "..." },
-          …
-        ]
-      }
+    Rebuild ADRs from disk, then return them.
     """
+    load_adrs(repo, ADR_DIR)
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     rows = cur.execute(
-        "SELECT id, tool, rule_id, severity FROM adr WHERE repo=?",
-        (repo,),
+        "SELECT id, tool, rule_id, severity FROM adr WHERE repo = ?", (repo,)
     ).fetchall()
     conn.close()
 
-    results = [
+    rules = [
         {"id": r[0], "tool": r[1], "rule_id": r[2], "severity": r[3]}
         for r in rows
     ]
-    return {"repo": repo, "rules": results}
+    return {"repo": repo, "rules": rules}
+
 
 @app.get("/adr/{adr_id}")
 def get_adr(adr_id: str):
     """
-    Return the raw Markdown content for a given ADR ID, e.g. 'ADR-CS-001'.
+    Return the full content of the ADR whose front-matter `id` matches `adr_id`.
     """
-    # ADR_DIR is already defined above as the docs/adr folder
-    fname = f"{adr_id}.md"
-    path = os.path.join(ADR_DIR, fname)
-    if not os.path.isfile(path):
-        raise HTTPException(status_code=404, detail="ADR not found")
-    with open(path, "r", encoding="utf-8") as f:
-        content = f.read()
-    return {"content": content}
+    if not os.path.isdir(ADR_DIR):
+        raise HTTPException(status_code=404, detail="ADR directory not found")
+
+    for fname in os.listdir(ADR_DIR):
+        if not fname.endswith(".md"):
+            continue
+        path = os.path.join(ADR_DIR, fname)
+        with open(path, "r", encoding="utf-8") as fh:
+            text = fh.read()
+        if text.startswith("---"):
+            try:
+                parts = text.split("---", 2)
+                data = yaml.safe_load(parts[1])
+                if data.get("id") == adr_id:
+                    return {"content": text}
+            except:
+                continue
+
+    raise HTTPException(status_code=404, detail="ADR not found")
 
 
 @app.post("/api/upload")
-def upload_violations(payload: UploadPayload):
+def upload(payload: UploadPayload):
     """
-    Accept an array of violations from the CLI. For each:
-      { adr_id, file, line, message }
-    we append it to the in‐memory list so that the UI can fetch it.
+    Accept incoming violations, append to in-memory list, and print them.
     """
     for v in payload.violations:
-        entry = {
+        in_memory_violations.append({
             "adr_id":  v.adr_id,
             "file":    v.file,
             "line":    v.line,
-            "message": v.message,
-        }
-        IN_MEMORY_VIOLATIONS.append(entry)
-        print(f"Violation for {v.adr_id} in {v.file}:{v.line} - {v.message}")
+            "message": v.message
+        })
+        print(f"Violation for {v.adr_id} in {v.file}:{v.line} – {v.message}")
     return {"status": "ok"}
 
 
 @app.get("/api/violations/{repo}")
 def get_violations(repo: str):
     """
-    Return all violations stored in memory. We’re ignoring `repo` for now,
-    but you could filter by repo if you wanted.
+    Return all uploaded violations (ignoring `repo` for now).
     """
-    return {"violations": IN_MEMORY_VIOLATIONS}
+    return {"violations": in_memory_violations}
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-#  Finally, serve the React/TS front‐end from packmind-ui/dist
-# ──────────────────────────────────────────────────────────────────────────────
+# Serve the React static files under `/`
 app.mount(
     "/",
     StaticFiles(directory="../packmind-ui/dist", html=True),
-    name="ui",
+    name="ui"
 )

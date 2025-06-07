@@ -1,21 +1,22 @@
-/* packmind-ui/src/App.css */
-
-/* ───────────────────────────── Global Resets ───────────────────────────── */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
+/* ───────────────────────── Global Resets ───────────────────────── */
 html, body, #root {
   height: 100%;
+  margin: 0;
+  padding: 0;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   background-color: #f3f4f6; /* light gray */
   color: #333;
-  overflow: hidden;
+  overflow: hidden; /* prevents the entire page from scrolling */
 }
 
-/* ───────────────────────────── Header ───────────────────────────── */
+/* ───────────────────────── App Container ───────────────────────── */
+.app-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;  /* header + content */
+}
+
+/* ───────────────────────── Header ───────────────────────── */
 .app-header {
   height: 60px;
   background-color: #1f2937; /* gray-800 */
@@ -24,157 +25,42 @@ html, body, #root {
   padding: 0 20px;
   color: #fff;
 }
-
 .app-header h1 {
   font-size: 1.5rem;
 }
 
-/* ───────────────────────────── Layout ───────────────────────────── */
+/* ───────────────────────── Layout ───────────────────────── */
+/* content-wrapper sits just below header and fills all leftover height */
 .content-wrapper {
   display: flex;
-  height: calc(100% - 60px); /* subtract header height */
+  flex: 1;            /* fill remaining vertical space under header */
+  min-height: 0;      /* critical: allow children to shrink and scroll */
 }
 
-/* ───────────────────────────── Main Panel ───────────────────────────── */
-.main-panel {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-  background-color: #ffffff;
-}
-
-/* Placeholder box when nothing is selected */
-.placeholder {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  color: #6b7280; /* gray-500 */
-  font-size: 1rem;
-}
-
-/* ADR Detail */
-.adr-detail h2 {
-  margin-bottom: 16px;
-  font-size: 1.75rem;
-  color: #1f2937; /* gray-800 */
-}
-
-/* ───────────────────────────── Frontmatter Badges ───────────────────────────── */
-.fm-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 24px;
-}
-
-/* Base badge style */
-.fm-badges span {
-  font-size: 0.85rem;
-  padding: 4px 8px;
-  border-radius: 4px;
-  color: #fff;
-  font-weight: 500;
-}
-
-/* Individual badge colors */
-.badge-id {
-  background-color: #2563eb; /* blue-600 */
-}
-.badge-type {
-  background-color: #10b981; /* green-500 */
-}
-.badge-status {
-  background-color: #f59e0b; /* amber-500 */
-}
-.badge-tool {
-  background-color: #6b7280; /* gray-600 */
-}
-.badge-rule {
-  background-color: #db2777; /* pink-600 */
-}
-.badge-severity {
-  background-color: #dc2626; /* red-600 */
-}
-
-/* ───────────────────────────── ADR Context Markdown ───────────────────────────── */
-.adr-context {
-  line-height: 1.6;
-  color: #374151; /* gray-700 */
-}
-
-/* Headings inside the Markdown */
-.adr-context h3, .adr-context h2 {
-  margin-top: 16px;
-  margin-bottom: 8px;
-  color: #111827; /* gray-900 */
-}
-
-/* Paragraphs */
-.adr-context p {
-  margin-bottom: 12px;
-}
-
-/* Lists */
-.adr-context ul, .adr-context ol {
-  margin-left: 1.5rem;
-  margin-bottom: 12px;
-}
-
-/* Inline code */
-.adr-context code {
-  background-color: #e5e7eb; /* gray-200 */
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-family: "Courier New", Courier, monospace;
-}
-
-/* Code blocks */
-.adr-context pre {
-  background-color: #1e293b; /* gray-800 */
-  padding: 16px;
-  border-radius: 4px;
-  color: #f3f4f6; /* gray-100 */
-  overflow-x: auto;
-}
-
-/* Links */
-.adr-context a {
-  color: #2563eb; /* blue-600 */
-  text-decoration: none;
-}
-.adr-context a:hover {
-  text-decoration: underline;
-}
-
-/* ───────────────────────────── Sidebar ───────────────────────────── */
+/* ───────────────────────── Sidebar (Left) ───────────────────────── */
 .sidebar {
   width: 260px;
   background-color: #f9fafb; /* gray-50 */
-  border-left: 1px solid #e5e7eb; /* gray-200 */
+  border-right: 1px solid #e5e7eb; /* gray-200 */
   padding: 16px;
-  overflow-y: auto;
+  overflow-y: auto;  /* allow scrolling if the ADR list is long */
+  min-height: 0;     /* enable the scrollbar to work */
 }
 
-/* Sidebar heading */
 .sidebar h3 {
   font-size: 1.25rem;
   margin-bottom: 16px;
   color: #1f2937; /* gray-800 */
 }
-
-/* Empty state */
 .sidebar-empty {
   color: #6b7280; /* gray-500 */
   font-size: 0.9rem;
 }
-
-/* ADR list in sidebar */
 .sidebar-list {
   list-style: none;
-  padding-left: 0;
+  padding: 0;
+  margin: 0;
 }
-
 .sidebar-item {
   padding: 12px;
   margin-bottom: 8px;
@@ -184,29 +70,143 @@ html, body, #root {
   display: flex;
   flex-direction: column;
 }
-
 .sidebar-item:hover {
   background-color: #e5e7eb; /* gray-200 */
 }
-
 .sidebar-item.selected {
   background-color: #3b82f6; /* blue-500 */
-  color: #ffffff;
+  color: #fff;
 }
-
-/* ADR ID in sidebar */
 .adr-id {
   font-weight: 600;
   font-size: 0.95rem;
 }
-
-/* ADR subtitle (tool / rule_id) */
 .adr-subtitle {
   font-size: 0.85rem;
   color: #4b5563; /* gray-600 */
 }
 
-/* ───────────────────────────── Custom Scrollbar (Chrome, Edge) ───────────────────────────── */
+/* ───────────────────────── Main Panel (Right) ───────────────────────── */
+.main-panel {
+  flex: 1;               
+  overflow-y: auto;      /* THIS lets the right pane scroll when its content overflows */
+  padding: 24px;
+  background-color: #ffffff;
+  min-height: 0;         /* <— without this, overflow-y: auto may not kick in */
+}
+
+/* Placeholder when no ADR is selected */
+.placeholder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: #6b7280; /* gray-500 */
+  font-size: 1rem;
+}
+
+/* ───────────────────── ADR Detail / Badges / Markdown styling ───────────────────── */
+.adr-detail h2 {
+  margin-bottom: 16px;
+  font-size: 1.75rem;
+  color: #1f2937; /* gray-800 */
+}
+
+.fm-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.fm-badges span {
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: #fff;
+  font-weight: 500;
+}
+
+.badge-id       { background-color: #2563eb; /* blue-600 */ }
+.badge-type     { background-color: #10b981; /* green-500 */ }
+.badge-status   { background-color: #f59e0b; /* amber-500 */ }
+.badge-tool     { background-color: #6b7280; /* gray-600 */ }
+.badge-rule     { background-color: #db2777; /* pink-600 */ }
+.badge-severity { background-color: #dc2626; /* red-600 */ }
+
+.adr-context {
+  line-height: 1.6;
+  color: #374151; /* gray-700 */
+}
+
+.adr-context h2, .adr-context h3 {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  color: #111827; /* gray-900 */
+}
+
+.adr-context p {
+  margin-bottom: 12px;
+}
+
+.adr-context ul, .adr-context ol {
+  margin-left: 1.5rem;
+  margin-bottom: 12px;
+}
+
+.adr-context code {
+  background-color: #e5e7eb; /* gray-200 */
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: "Courier New", Courier, monospace;
+}
+
+.adr-context pre {
+  background-color: #1e293b; /* gray-800 */
+  padding: 16px;
+  border-radius: 4px;
+  color: #f3f4f6; /* gray-100 */
+  overflow-x: auto;
+}
+
+.adr-context a {
+  color: #2563eb; /* blue-600 */
+  text-decoration: none;
+}
+.adr-context a:hover {
+  text-decoration: underline;
+}
+
+/* ───────────────────────── Live Violations Section ───────────────────────── */
+.violations-section {
+  margin-top: 32px;
+}
+
+.violations-section h3 {
+  font-size: 1.25rem;
+  margin-bottom: 12px;
+  color: #1f2937; /* gray-800 */
+}
+
+.violation-list {
+  list-style: none;
+  padding: 0;
+}
+
+.violation-item {
+  background-color: #fef2f2; /* red-50 */
+  border-left: 4px solid #f87171; /* red-400 */
+  padding: 12px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+}
+
+.error-text {
+  color: #b91c1c; /* red-700 */
+  margin-bottom: 12px;
+}
+
+/* ───────────────────────── Custom Scrollbars (Chrome/Edge) ───────────────────────── */
 .main-panel::-webkit-scrollbar,
 .sidebar::-webkit-scrollbar {
   width: 8px;

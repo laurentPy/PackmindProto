@@ -1,11 +1,11 @@
 {
   "runs": [
     {
-      "tool": { "driver": { "name": "prettier" } },
+      "tool": { "driver": { "name": "packmind_agent" } },
       "results": [
         {
-          "ruleId": "prettier",
-          "message": { "text": "trial formatting error" }
+          "ruleId": "log_should_include_full_error",
+          "message": { "text": "error handling should include all error object" }
         }
       ]
     }

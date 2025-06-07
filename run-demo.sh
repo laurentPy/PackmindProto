@@ -43,11 +43,13 @@ echo "✅ Generated SARIF file: $SARIF_OUT"
 
 echo
 echo "=== 3/3: Uploading SARIF to Packmind server ==="
+
 python3 cli/packmind_cli.py \
-  --sarif        "$SARIF_OUT" \
+  --sarif report_archunit.sarif report.sarif \
   --manifest-url http://localhost:8000/manifest \
   --upload-url   http://localhost:8000/api/upload \
-  --repo         mySpace
+  --repo mySpace
+
 
 echo
 echo "🎉 Demo complete."
