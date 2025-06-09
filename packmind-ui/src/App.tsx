@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import YAML from "js-yaml";
 import ReactMarkdown from "react-markdown";
+import { DashboardPage } from "./pages/DashboardPage";
 import "./App.css";
 
 //
@@ -78,9 +79,11 @@ useEffect(() => {
 }, []);
 
 
+
+
   // ─────────────────────────── Fetch ADR content when selection changes ───────────────────────────
   useEffect(() => {
-    if (!selectedAdr) {
+    if (!selectedAdr || selectedAdr === "dashboard") {
       setAdrData(null);
       return;
     }
@@ -173,13 +176,24 @@ useEffect(() => {
                   </div>
                 </li>
               ))}
+              {/* ─── Dashboard menu entry ─── */}
+              <li
+                key="dashboard"
+                className={selectedAdr === "dashboard" ? "sidebar-item selected" : "sidebar-item"}
+                onClick={() => setSelectedAdr("dashboard")}
+              >
+                <div className="adr-id">📊 Dashboard</div>
+              </li>
             </ul>
           )}
         </nav>
 
         {/* ─── Main Panel ─── */}
         <main className="main-panel">
-          {!selectedAdr ? (
+          {selectedAdr === "dashboard" ? (
+            /* Dashboard view */
+            <DashboardPage />
+          ) : !selectedAdr ? (
             <div className="placeholder">
               <p>Select an ADR on the left to view its details.</p>
             </div>
