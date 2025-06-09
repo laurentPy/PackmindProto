@@ -11,6 +11,7 @@ def parse_args():
     p.add_argument("--manifest-url", required=True, help="Base URL to manifest endpoint")
     p.add_argument("--upload-url", required=True, help="URL to upload violations")
     p.add_argument("--repo", required=True, help="GitHub repository name")
+    p.add_argument("--output", "-o",help="If set, write GitHub annotations JSON to the given file",required=False)
     return p.parse_args()
 
 
@@ -138,6 +139,27 @@ def main():
         sys.exit(1)
 
     print("→ Successfully uploaded all violations.")
+
+    # ─── Build GitHub annotations ─────────────────────────────────────────────
+    annotations = []
+    for v in all_violations:
+        annotations.append({
+            "path":             v["file"],
+            "start_line":       v["line"] or 1,
+            "end_line":         v["line"] or 1,
+            "annotation_level": "failure" if v.get("severity","error")=="error" else "warning",
+            "message":          f"[{v['adr_id']}] {v['message']}"
+        })
+
+    # ─── Optionally dump to the --output file ──────────────────────────────────
+    if args.output:
+        try:
+            with open(args.output, "w", encoding="utf-8") as outf:
+                json.dump(annotations, outf, indent=2)
+            print(f"→ Wrote {len(annotations)} annotations to {args.output}")
+        except Exception as e:
+            print(f"ERROR: failed to write annotations to {args.output}: {e}", file=sys.stderr)
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()

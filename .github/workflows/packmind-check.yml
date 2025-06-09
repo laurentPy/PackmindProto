@@ -1,69 +1,97 @@
 # .github/workflows/packmind-check.yml
-name: Packmind Checks
+name: Packmind ADR Check
 
 on:
   pull_request:
-    branches: [main]
+    types: [opened, synchronize, reopened]
 
 jobs:
-  # 1 ──────────────── Fast-lane (Prettier, etc.) ────────────────
-  fast-lane:
+  packmind:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # 1) Check out this repo (contains cli/packmind_cli.py, workflows, etc.)
+      - name: Checkout PackmindProto
+        uses: actions/checkout@v4
+        with:
+          path: packmind
 
-      # ⚡ fake / or real Prettier run goes here ...
-      - name: Upload Prettier to Packmind
+      # 2) Check out the “vanilla” demo app as its own repo under ./vanilla
+      - name: Checkout Vanilla App
+        uses: actions/checkout@v4
+        with:
+          repository: laurentPy/PackmindProto-Vanilla
+          path: vanilla
+
+      # 3) Set up Python for the Packmind CLI
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install CLI dependencies
         run: |
-          python3 cli/packmind_cli.py \
-            --sarif        report.sarif \
+          python -m pip install --upgrade pip
+          pip install requests pyyaml
+
+      # 4) Upload Prettier (or other formatting) SARIF to Packmind
+      - name: Upload Prettier SARIF
+        working-directory: packmind
+        run: |
+          python cli/packmind_cli.py \
+            --sarif ../vanilla/report.sarif \
             --manifest-url http://localhost:8000/manifest \
             --upload-url   http://localhost:8000/api/upload \
-            --repo         mySpace
+            --repo         "${{ github.repository }}"
 
-  # 2 ──────────────── Full-lane (ArchUnit) ────────────────
-  archunit:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/vanilla        # <─ gradle project root
-    steps:
-      - uses: actions/checkout@v4
-
-      # Install JDK for the build
+      # 5) Set up JDK and run ArchUnit tests in the vanilla app
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      # 2-A  Build + test (JUnit + ArchUnit)
-      - name: Gradle test
-        run: |
-          ./gradlew --no-daemon clean test
-          # After this, JUnit XML lives in
-          # apps/vanilla/build/test-results/test/*.xml
+      - name: Gradle test (ArchUnit)
+        working-directory: vanilla
+        run: ./gradlew --no-daemon clean test
 
-      # 2-B  Convert JUnit XML → SARIF
-      # ──────────────────────────────────────────
-      # Option 1: ArchUnit ≥ 1.2.0 can write SARIF directly:
-      #   - Add `archUnitSarif` plugin or `ArchUnitSarifReport`.
-      #   - Then just copy that *.sarif file.
-      #
-      # Option 2 (shown here): generic junit-to-sarif converter
+      # 6) Convert JUnit XML → SARIF
       - name: Convert JUnit XML to SARIF
         run: |
-          pip install junit2sarif  # tiny Python tool
-          junit2sarif \
-            build/test-results/test \
-            --output ../../report_archunit.sarif
+          python -m pip install junit2sarif
+          junit2sarif vanilla/build/test-results/test --output report_archunit.sarif
 
-      # 2-C  Upload to Packmind
-      - name: Upload ArchUnit SARIF to Packmind
-        working-directory: ../..               # back to repo root
+      # 7) Upload ArchUnit SARIF to Packmind
+      - name: Upload ArchUnit SARIF
+        working-directory: packmind
         run: |
-          python3 cli/packmind_cli.py \
-            --sarif        report_archunit.sarif \
+          python cli/packmind_cli.py \
+            --sarif report_archunit.sarif \
             --manifest-url http://localhost:8000/manifest \
             --upload-url   http://localhost:8000/api/upload \
-            --repo         mySpace
+            --repo         "${{ github.repository }}"
+
+      # 8) Generate GitHub annotations JSON
+      - name: Generate annotations.json
+        id: packmind
+        working-directory: packmind
+        run: |
+          python cli/packmind_cli.py \
+            --sarif report_archunit.sarif report.sarif \
+            --manifest-url http://localhost:8000/manifest \
+            --upload-url   http://localhost:8000/api/upload \
+            --repo         "${{ github.repository }}" \
+            --output       annotations.json
+          echo "::set-output name=annotations::$(jq -c . < annotations.json)"
+
+      # 9) Post a GitHub Check with inline annotations
+      - name: Publish Packmind ADR Check
+        uses: peter-evans/create-check@v2
+        with:
+          token: ${{ secrets.PACKMIND_TOKEN }}
+          name: Packmind ADR Check
+          status: completed
+          conclusion: ${{ steps.packmind.outcome == 'success' && 'success' || 'failure' }}
+          output: |
+            title: Packmind ADR Violations
+            summary: ${{ fromJson(steps.packmind.outputs.annotations).length }} violations found
+            annotations: ${{ steps.packmind.outputs.annotations }}
