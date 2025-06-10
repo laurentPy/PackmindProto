@@ -5,6 +5,8 @@ from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from pathlib import Path
+from starlette.staticfiles import StaticFiles
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "packmind.db")
 REPO_NAME = os.getenv("REPO_NAME", "org/repo")
@@ -180,8 +182,15 @@ def get_violations(repo: str):
 
 
 # Serve the React static files under `/`
+HERE = Path(__file__).resolve().parent            # /app/server
+UI_DIST = HERE.parent / "packmind-ui" / "dist"    # /app/packmind-ui/dist
+
+# sanity check the folder is there
+if not UI_DIST.is_dir():
+    raise RuntimeError(f"UI build not found at {UI_DIST!r}")
+
 app.mount(
-     "/",
-     StaticFiles(directory="packmind-ui/dist", html=True),
-     name="static",
- )
+    "/",
+    StaticFiles(directory=str(UI_DIST), html=True),
+    name="static",
+)
