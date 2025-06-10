@@ -7,7 +7,7 @@ import sys
 
 def parse_args():
     p = argparse.ArgumentParser(description="Packmind Lite CLI")
-    p.add_argument("--sarif", required=True, nargs="+", help="Path to SARIF report")
+    p.add_argument("--sarif", required=True, nargs="+", action="extend", help="Path to SARIF report")
     p.add_argument("--manifest-url", required=True, help="Base URL to manifest endpoint")
     p.add_argument("--upload-url", required=True, help="URL to upload violations")
     p.add_argument("--repo", required=True, help="GitHub repository name")
