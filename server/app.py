@@ -7,12 +7,20 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from pathlib import Path
 from starlette.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "packmind.db")
 REPO_NAME = os.getenv("REPO_NAME", "org/repo")
 ADR_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "docs", "adr"))
 
 app = FastAPI(title="Packmind Lite")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://packmind-frontend.onrender.com"],  # your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],  # or ["GET", "POST"]
+    allow_headers=["*"],
+)
 
 # In-memory list to hold uploaded violations
 in_memory_violations: List[dict] = []
