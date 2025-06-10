@@ -181,7 +181,7 @@ def get_violations(repo: str):
 
 # Serve the React static files under `/`
 app.mount(
-    "/",
-    StaticFiles(directory="../packmind-ui/dist", html=True),
-    name="ui"
-)
+     "/",
+     StaticFiles(directory="packmind-ui/dist", html=True),
+     name="static",
+ )
