@@ -48,10 +48,18 @@ export default function App() {
   const [violationsError, setViolationsError] = useState<string | null>(null);
 
   // ─────────────────────────── Config / URLs ───────────────────────────
-  const REPO_KEY       = "mySpace"; 
-  const MANIFEST_URL   = `http://localhost:8000/manifest/${REPO_KEY}`;
-  const ADR_URL_BASE   = `http://localhost:8000/adr/`;             
-  const VIOLATIONS_URL = `http://localhost:8000/api/violations/${REPO_KEY}`;
+  //const REPO_KEY       = "mySpace"; 
+  //const MANIFEST_URL   = `http://localhost:8000/manifest/${REPO_KEY}`;
+  //const ADR_URL_BASE   = `http://localhost:8000/adr/`;             
+  //const VIOLATIONS_URL = `http://localhost:8000/api/violations/${REPO_KEY}`;
+
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
+  const REPO_KEY       = "mySpace";
+  const MANIFEST_URL   = `${API_BASE_URL}/manifest/${REPO_KEY}`;
+  const ADR_URL_BASE   = `${API_BASE_URL}/adr/`;
+  const VIOLATIONS_URL = `${API_BASE_URL}/api/violations/${REPO_KEY}`;
+
 
   // ─────────────────────────── Fetch manifest on mount ───────────────────────────
 // NEW: poll /manifest every 10 seconds
