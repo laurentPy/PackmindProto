@@ -119,7 +119,7 @@ def startup_event():
     init_db()
 
 
-@app.get("/manifest/{repo}")
+@app.get("/manifest/{repo:path}")
 def get_manifest(repo: str):
     """
     Rebuild ADRs from disk, then return them.
