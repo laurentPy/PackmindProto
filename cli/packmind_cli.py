@@ -22,6 +22,7 @@ def load_manifest(url: str, repo: str):
     mapping = {}
     for rule in data.get("rules", []):
         mapping[(rule["tool"], rule["rule_id"])] = rule["id"]
+    print(f"Loaded manifest mappings: {mapping}")
     return mapping
 
 
@@ -32,6 +33,7 @@ def parse_sarif(path: str):
     tool = run["tool"]["driver"]["name"].lower()
     results = run.get("results", [])
     items = []
+    print(f"Parsing SARIF report from {path}, found {len(results)} results.")
     for res in results:
         rule = res.get("ruleId")
         msg = res.get("message", {}).get("text", "")
@@ -43,6 +45,7 @@ def parse_sarif(path: str):
             file = ""
             line = 1
         items.append({"tool": tool, "rule": rule, "file": file, "line": line, "msg": msg})
+        print(f"Parsed item: tool={tool}, rule={rule}, file={file}, line={line}, msg={msg}")
     return items
 
 
@@ -109,7 +112,7 @@ def main():
                 key = (it["tool"], it["rule"])
                 adr_id = manifest_map.get(key)
                 if not adr_id:
-                    print(f"⚠️  No ADR mapping for {key}, skipping", file=sys.stderr)
+                    print(f"⚠️  No ADR mapping for {key}, skipping: file={it['file']}, line={it['line']}")  
                     continue
                 violations.append({
                     "adr_id":  adr_id,
