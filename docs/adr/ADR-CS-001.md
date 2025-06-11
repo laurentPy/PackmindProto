@@ -5,6 +5,8 @@ enforcement:
   tool: prettier
   rule_id: prettier
   severity: warning
+date: 2025-06-10
+status: active
 ---
 ## Context
 
