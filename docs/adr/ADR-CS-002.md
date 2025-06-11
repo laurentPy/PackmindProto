@@ -5,6 +5,8 @@ enforcement:
   tool: packmind_agent
   rule_id: log_should_include_full_error
   severity: error
+date: 2025-06-10
+status: active
 ---
 ## Context
 

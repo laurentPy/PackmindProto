@@ -2,6 +2,9 @@
 id: ADR-CS-003
 title: Kafka Cookbook: Best Practices and Setup Steps
 date: 2025-06-11
+tool: code_review
+  rule_id: kafka_cook_book
+  severity: warning
 status: Proposed
 ---
 # Context
