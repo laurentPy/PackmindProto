@@ -7,7 +7,6 @@ enforcement:
   severity: error
 date: 2025-06-10
 status: active
-type: system-architecture
 ---
 ## Context
 In our current monolithic codebase, several UI classes directly import and invoke domain‐core services, bypassing the intended application service layer. This tight coupling creates multiple challenges:
