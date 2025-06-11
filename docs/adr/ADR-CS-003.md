@@ -1,9 +1,10 @@
 ---
 id: ADR-CS-003
-title: Kafka Cookbook: Best Practices and Setup Steps
+title: Kafka Cookbook - Best Practices and Setup Steps
 date: 2025-06-11
-tool: code_review
-  rule_id: kafka_cook_book
+enforcement:
+  tool: code_review
+  rule_id: follow_kafka_cook_book
   severity: warning
 status: Proposed
 ---
